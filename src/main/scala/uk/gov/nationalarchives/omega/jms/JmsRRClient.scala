@@ -53,11 +53,11 @@ case class ReplyMessage(body: String)
  */
 class JmsRRClient[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, ReplyMessageHandler[F]])(consumer: Unit, producer: JmsProducer[F]) {
 
-  def request(requestQueue: String, jmsRequest: RequestMessage, replyMessageHandler: ReplyMessageHandler[F])(implicit F: Async[F]) : F[Unit] = {
+  def request(requestQueue: String, jmsRequest: RequestMessage, replyMessageHandler: ReplyMessageHandler[F]): F[Unit] = {
 
     val sender: F[Option[String]] = producer.send { mf =>
       val jmsMessage: F[JmsMessage.JmsTextMessage] = mf.makeTextMessage(jmsRequest.body)
-      F.map(jmsMessage)(jmsMessage =>
+      Async[F].map(jmsMessage)(jmsMessage =>
         jmsMessage.setStringProperty("sid", jmsRequest.sid) match {
           case Success(_) => (jmsMessage, QueueName(requestQueue))
           case Failure(e) =>
@@ -66,11 +66,11 @@ class JmsRRClient[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, Rep
         })
     }
 
-    F.flatMap(sender) {
+    Async[F].flatMap(sender) {
       case Some(messageId) =>
-        F.delay(requestMap.put(messageId, replyMessageHandler))
+        Async[F].delay(requestMap.put(messageId, replyMessageHandler))
       case None =>
-        F.raiseError(new IllegalStateException("No messageId obtainable from JMS but application requires messageId support"))
+        Async[F].raiseError(new IllegalStateException("No messageId obtainable from JMS but application requires messageId support"))
     }
   }
 }
