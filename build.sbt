@@ -23,8 +23,8 @@ lazy val root = (project in file("."))
       "org.typelevel" %% "cats-effect-kernel" % "3.4.4",
       //"org.typelevel" %% "log4cats-slf4j" % "2.5.0",
       "org.typelevel" %% "log4cats-core" % "2.5.0",
-      "dev.fpinbo" %% "jms4s-active-mq-artemis" % "0.0.1-350e4fd-SNAPSHOT",
-      "dev.fpinbo" %% "jms4s-simple-queue-service" % "0.0.1-350e4fd-SNAPSHOT",
+      "dev.fpinbo" %% "jms4s-active-mq-artemis" % "0.0.1-a9c282c",
+      "dev.fpinbo" %% "jms4s-simple-queue-service" % "0.0.1-a9c282c",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test,
       "org.typelevel" %% "munit-cats-effect-3" % "1.0.7" % Test
