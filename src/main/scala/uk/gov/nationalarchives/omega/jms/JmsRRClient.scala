@@ -28,16 +28,17 @@ import cats.effect.{Async, Resource}
 import jms4s.JmsAcknowledgerConsumer.AckAction
 import jms4s.activemq.activeMQ
 import jms4s.activemq.activeMQ.{Password, Username}
+import jms4s.{JmsClient, JmsProducer}
 import jms4s.config.QueueName
 import jms4s.jms.{JmsMessage, MessageFactory}
 import jms4s.sqs.simpleQueueService
 import jms4s.sqs.simpleQueueService.{Credentials, DirectAddress, HTTP}
-import jms4s.{JmsClient, JmsProducer}
 import org.typelevel.log4cats.Logger
 import uk.gov.nationalarchives.omega.jms.JmsRRClient.ReplyMessageHandler
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+//import java.util.concurrent.ConcurrentHashMap
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -49,26 +50,40 @@ case class ReplyMessage(body: String)
  * Suitable for being packaged as a library for abstracting
  * away the complexities of JMS and jms4s.
  *
- * @author <a href="mailto:adam@evolvedbinary.com">Adam Retter</a>
+ * @param requestMap - a map of the requests sent and their reply handlers
+ * @param consumer - unused
+ * @param producer - the JmsProducer used to send the message
+ * @tparam F
  */
 class JmsRRClient[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, ReplyMessageHandler[F]])(consumer: Unit, producer: JmsProducer[F]) {
 
+  /**
+   *
+   * @param requestQueue - the queue to send the message to
+   * @param jmsRequest  - the request message
+   * @param replyMessageHandler - the reply handler
+   * @return
+   */
   def request(requestQueue: String, jmsRequest: RequestMessage, replyMessageHandler: ReplyMessageHandler[F]): F[Unit] = {
 
+    /* calls the JmsProducer send method and returns an optional message ID */
     val sender: F[Option[String]] = producer.send { mf =>
       val jmsMessage: F[JmsMessage.JmsTextMessage] = mf.makeTextMessage(jmsRequest.body)
       Async[F].map(jmsMessage)(jmsMessage =>
         jmsMessage.setStringProperty("sid", jmsRequest.sid) match {
           case Success(_) => (jmsMessage, QueueName(requestQueue))
           case Failure(e) =>
-            // TODO log the error and find a way out of sending the message
+            // TODO (RW) log the error and find a way out of sending the message
             (jmsMessage, QueueName(requestQueue))
         })
     }
 
     Async[F].flatMap(sender) {
       case Some(messageId) =>
-        Async[F].delay(requestMap.put(messageId, replyMessageHandler))
+        Async[F].delay {
+          val _ = requestMap.put(messageId, replyMessageHandler)
+          ()
+        }
       case None =>
         Async[F].raiseError(new IllegalStateException("No messageId obtainable from JMS but application requires messageId support"))
     }
@@ -79,9 +94,9 @@ object JmsRRClient {
 
   type ReplyMessageHandler[F[_]] = ReplyMessage => F[Unit]
 
-  private val defaultConsumerConcurrencyLevel = 1 //0
+  private val defaultConsumerConcurrencyLevel = 1 // 10
   private val defaultConsumerPollingInterval = 50.millis
-  private val defaultProducerConcurrencyLevel = 1 //0
+  private val defaultProducerConcurrencyLevel = 1 // 10
 
   /**
    * Create a JMS Request-Reply Client for use with Apache Active MQ.
@@ -161,14 +176,17 @@ object JmsRRClient {
    * finds the ReplyMessageHandler and dispatches the message
    * to it.
    */
-  private def jmsConsumerHandler[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, ReplyMessageHandler[F]])(jmsMessage: JmsMessage, mf: MessageFactory[F])(implicit F: Async[F], L: Logger[F]): F[AckAction[F]] = {
+  //private def jmsConsumerHandler[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, ReplyMessageHandler[F]])(jmsMessage: JmsMessage, mf: MessageFactory[F])(implicit F: Async[F], L: Logger[F]): F[AckAction[F]] = {
+  def jmsConsumerHandler[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, ReplyMessageHandler[F]])(jmsMessage: JmsMessage, mf: MessageFactory[F])(implicit F: Async[F], L: Logger[F]): F[AckAction[F]] = {
+    // the correlated request handler gets the correlation id from the incoming message and checks the requestMap for it - if it is found it is removed from the request map and the mapped
+    // reply handler is called. The message is also acknowledged.
     val maybeCorrelatedRequestHandler: F[Option[ReplyMessageHandler[F]]] = F.delay(jmsMessage.getJMSCorrelationId.flatMap(correlationId => Option(requestMap.remove(correlationId))))
 
     val maybeHandled: F[Unit] = F.flatMap(maybeCorrelatedRequestHandler) {
       case Some(correlatedRequestHandler) =>
         correlatedRequestHandler(ReplyMessage(jmsMessage.attemptAsText.get))
       case None =>
-        L.error("No request found for response '${jmsMessage.attemptAsText.get}'")
+        L.error(s"No request found for response '${jmsMessage.attemptAsText.get}'")
       // TODO(AR) maybe record/report these somewhere better...
     }
 

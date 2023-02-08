@@ -1,5 +1,15 @@
 version: "3.7"
 services:
+  activemq:
+    image: vromero/activemq-artemis:2.16.0 # https://github.com/vromero/activemq-artemis-docker/blob/master/README.md
+    ports:
+      - "8161:8161" # http://localhost:8161/console
+      - "61616:61616"
+    volumes:
+      - ./broker-00.xml:/var/lib/artemis/etc-override/broker-00.xml:ro
+    environment:
+      - ARTEMIS_USERNAME=admin
+      - ARTEMIS_PASSWORD=passw0rd
   elasticmq-native:
     container_name: elasticmq-container
     ports:

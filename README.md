@@ -1,7 +1,15 @@
-# JMS4S Request-Reply Library
+# jms4s Request-Reply Library
 
-This library adds support for the Request-Reply Messaging Pattern to JMS4S, a functional wrapper for JMS.   
--request-reply
+This library adds support for the [Request-Reply Messaging Pattern](https://www.enterpriseintegrationpatterns.com/RequestReply.html) to [jms4s](https://fpinbo.dev/jms4s/), a functional wrapper for JMS.
+
+**Important note**
+Currently this project is configured to depend on custom build of jms4s which is available as a GitHub package from https://github.com/rwalpole/jms4s 
+
+To run the tests in this project you will need to run Docker with an instance of ElasticMQ which can be achieved by running the following command from the root of the project:
+```
+docker compose up -d
+```
+Once ElasticMQ is up you will also need to run the `EchoServer` stub service [from this project](https://github.com/nationalarchives/jms4s-request-reply-stub) which is configured to listen to the same message broker and respond to the test messages.
 
 ### Pre-requisites for building and running the project:
 * [Git](https://git-scm.com)
