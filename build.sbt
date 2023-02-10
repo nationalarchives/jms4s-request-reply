@@ -7,6 +7,10 @@ ThisBuild / licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT"))
 ThisBuild / description := "JMS4S Request-Reply Library"
 ThisBuild / githubOwner := "nationalarchives"
 ThisBuild / githubRepository := "jms4s-request-reply"
+ThisBuild /githubTokenSource := TokenSource.Or(
+  TokenSource.Environment("GITHUB_TOKEN"),
+  TokenSource.GitConfig("github.token")
+)
 
 lazy val root = (project in file("."))
   .enablePlugins(AutomateHeaderPlugin)
