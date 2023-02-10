@@ -28,17 +28,16 @@ import cats.effect.{Async, Resource}
 import jms4s.JmsAcknowledgerConsumer.AckAction
 import jms4s.activemq.activeMQ
 import jms4s.activemq.activeMQ.{Password, Username}
-import jms4s.{JmsClient, JmsProducer}
 import jms4s.config.QueueName
 import jms4s.jms.{JmsMessage, MessageFactory}
 import jms4s.sqs.simpleQueueService
 import jms4s.sqs.simpleQueueService.{Credentials, DirectAddress, HTTP}
+import jms4s.{JmsClient, JmsProducer}
 import org.typelevel.log4cats.Logger
 import uk.gov.nationalarchives.omega.jms.JmsRRClient.ReplyMessageHandler
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-//import java.util.concurrent.ConcurrentHashMap
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Success}
 
@@ -192,6 +191,7 @@ object JmsRRClient {
 
     F.*>(maybeHandled)(F.pure(AckAction.ack[F]))  // acknowledge receipt of the message
   }
+
 }
 
 private trait RandomClientIdGen[F[_]] {

@@ -21,15 +21,13 @@
 
 package uk.gov.nationalarchives.omega.jms
 
-import cats.effect.std.Queue
-import cats.effect.{IO, Resource}
 import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.effect.{IO, Resource}
 import org.scalatest.FutureOutcome
 import org.scalatest.freespec.FixtureAsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jFactory
-import uk.gov.nationalarchives.omega.jms.JmsRRClient.ReplyMessageHandler
 
 class JmsRRActiveMQClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with Matchers  {
 
@@ -59,38 +57,16 @@ class JmsRRActiveMQClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with
   "ActiveMQ Client" - {
     "send a message and handle the reply" ignore { jmsRrClient =>
       val requestQueue = "request-general"
-      // The following block can be used in a function within the service layer of a Play Framework application.
-      // It works by creating a Queue and putting it into the ReplyMessageHandler. It next makes a request using the JMS
-      // client and when the reply eventually appears in the queue in can be returned to the caller of the service
-      // function (e.g. a Play controller) where it can be converted to a Future[Result].
-      val result = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 1234", "1234"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
+      val handler = RequestReplyHandler(jmsRrClient)
+      val result = handler.handle(requestQueue, RequestMessage(s"hello 1234", "1234"))
 
       IO(result.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
     }
     "send two messages and handle the replies" ignore { jmsRrClient =>
       val requestQueue = "request-general"
-
-      // The following block can be used in a function within the service layer of a Play Framework application.
-      // It works by creating a Queue and putting it into the ReplyMessageHandler. It next makes a request using the JMS
-      // client and when the reply eventually appears in the queue in can be returned to the caller of the service
-      // function (e.g. a Play controller) where it can be converted to a Future[Result].
-      val result1 = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 1234", "1234"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
-      val result2 = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 5678", "5678"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
+      val handler = RequestReplyHandler(jmsRrClient)
+      val result1 = handler.handle(requestQueue, RequestMessage(s"hello 1234", "1234"))
+      val result2 = handler.handle(requestQueue, RequestMessage(s"hello 5678", "5678"))
 
       IO(result1.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
       IO(result2.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 5678")
@@ -98,29 +74,10 @@ class JmsRRActiveMQClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with
     }
     "send three messages and handle the replies" ignore { jmsRrClient =>
       val requestQueue = "request-general"
-
-      // The following block can be used in a function within the service layer of a Play Framework application.
-      // It works by creating a Queue and putting it into the ReplyMessageHandler. It next makes a request using the JMS
-      // client and when the reply eventually appears in the queue in can be returned to the caller of the service
-      // function (e.g. a Play controller) where it can be converted to a Future[Result].
-      val result1 = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 1234", "1234"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
-      val result2 = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 5678", "5678"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
-      val result3 = Queue.bounded[IO, String](1).flatMap { editSetQueue =>
-        val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
-        jmsRrClient.request(requestQueue, RequestMessage(s"hello 9000", "9000"), replyHandler) flatMap { _ =>
-          editSetQueue.take
-        }
-      }
+      val handler = RequestReplyHandler(jmsRrClient)
+      val result1 = handler.handle(requestQueue, RequestMessage(s"hello 1234", "1234"))
+      val result2 = handler.handle(requestQueue, RequestMessage(s"hello 5678", "5678"))
+      val result3 = handler.handle(requestQueue, RequestMessage(s"hello 9000", "9000"))
 
       IO(result1.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
       IO(result2.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 5678")
