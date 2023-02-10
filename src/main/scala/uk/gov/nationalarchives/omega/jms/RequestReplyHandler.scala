@@ -23,6 +23,7 @@ package uk.gov.nationalarchives.omega.jms
 
 import cats.effect.IO
 import cats.effect.std.Queue
+import org.typelevel.log4cats.Logger
 import uk.gov.nationalarchives.omega.jms.JmsRRClient.ReplyMessageHandler
 
 case class RequestReplyHandler(jmsRrClient: JmsRRClient[IO]) {
@@ -33,7 +34,7 @@ case class RequestReplyHandler(jmsRrClient: JmsRRClient[IO]) {
    * @param requestMessage the JMS message
    * @return
    */
-  def handle(requestQueue: String, requestMessage: RequestMessage): IO[String] =
+  def handle(requestQueue: String, requestMessage: RequestMessage)(implicit L: Logger[IO]): IO[String] =
     Queue.bounded[IO, String](1).flatMap { editSetQueue =>
       val replyHandler: ReplyMessageHandler[IO] = replyMessage => editSetQueue.offer(replyMessage.body)
       jmsRrClient.request(requestQueue, requestMessage, replyHandler) flatMap { _ =>

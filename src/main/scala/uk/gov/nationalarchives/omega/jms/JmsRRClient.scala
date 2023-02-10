@@ -21,13 +21,10 @@
 
 package uk.gov.nationalarchives.omega.jms
 
-import cats.data.NonEmptyList
 import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.Sync
 import cats.effect.{Async, Resource}
 import jms4s.JmsAcknowledgerConsumer.AckAction
-import jms4s.activemq.activeMQ
-import jms4s.activemq.activeMQ.{Password, Username}
 import jms4s.config.QueueName
 import jms4s.jms.{JmsMessage, MessageFactory}
 import jms4s.sqs.simpleQueueService
@@ -63,7 +60,7 @@ class JmsRRClient[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, Rep
    * @param replyMessageHandler - the reply handler
    * @return
    */
-  def request(requestQueue: String, jmsRequest: RequestMessage, replyMessageHandler: ReplyMessageHandler[F]): F[Unit] = {
+  def request(requestQueue: String, jmsRequest: RequestMessage, replyMessageHandler: ReplyMessageHandler[F])(implicit L: Logger[F]): F[Unit] = {
 
     /* calls the JmsProducer send method and returns an optional message ID */
     val sender: F[Option[String]] = producer.send { mf =>
@@ -72,7 +69,8 @@ class JmsRRClient[F[_]: Async: Logger](requestMap: ConcurrentHashMap[String, Rep
         jmsMessage.setStringProperty("sid", jmsRequest.sid) match {
           case Success(_) => (jmsMessage, QueueName(requestQueue))
           case Failure(e) =>
-            // TODO (RW) log the error and find a way out of sending the message
+            // TODO (RW) there must be a better way to handle this
+            L.error(s"Failed to set SID due to ${e.getMessage}")
             (jmsMessage, QueueName(requestQueue))
         })
     }
@@ -93,37 +91,11 @@ object JmsRRClient {
 
   type ReplyMessageHandler[F[_]] = ReplyMessage => F[Unit]
 
-  private val defaultConsumerConcurrencyLevel = 1 // 10
+  private val defaultConsumerConcurrencyLevel = 1
   private val defaultConsumerPollingInterval = 50.millis
-  private val defaultProducerConcurrencyLevel = 1 // 10
+  private val defaultProducerConcurrencyLevel = 1
 
-  /**
-   * Create a JMS Request-Reply Client for use with Apache Active MQ.
-   *
-   * @param endpoint the ActiveMQ broker endpoint to connect to.
-   * @param credentials the credentials for connecting to the ActiveMQ broker.
-   * @param customClientId an optional Custom client ID to identify this client.
-   *
-   * @param replyQueue the queue that replies should be consumed from.
-   *
-   * @return The resource for the JMS Request-Reply Client.
-   */
-  def createForActiveMq[F[_]: Async: Logger](endpoint: HostBrokerEndpoint, credentials: UsernamePasswordCredentials, customClientId: Option[F[String]] = None)(replyQueue: String): Resource[F, JmsRRClient[F]] = {
-    val clientIdRes: Resource[F, String] = Resource.liftK[F](customClientId.getOrElse(RandomClientIdGen.randomClientId[F]))
-
-    val jmsClientRes: Resource[F, JmsClient[F]] = clientIdRes.flatMap { clientId =>
-      activeMQ.makeJmsClient[F](activeMQ.Config(
-        endpoints = NonEmptyList.one(activeMQ.Endpoint(endpoint.host, endpoint.port)),
-        username = Some(Username(credentials.username)),
-        password = Some(Password(credentials.password)),
-        clientId = activeMQ.ClientId(clientId)
-      ))
-    }
-
-    create[F](jmsClientRes)(replyQueue)
-  }
-
-  /**
+ /**
    * Create a JMS Request-Reply Client for use with Amazon Simple Queue Service.
    *
    * @param credentials the credentials for connecting to the ActiveMQ broker.

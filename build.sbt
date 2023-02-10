@@ -7,7 +7,7 @@ ThisBuild / licenses := Seq("MIT" -> url("https://opensource.org/licenses/MIT"))
 ThisBuild / description := "JMS4S Request-Reply Library"
 ThisBuild / githubOwner := "nationalarchives"
 ThisBuild / githubRepository := "jms4s-request-reply"
-ThisBuild /githubTokenSource := TokenSource.Or(
+ThisBuild /githubTokenSource.withRank(KeyRanks.Invisible) := TokenSource.Or(
   TokenSource.Environment("GITHUB_TOKEN"),
   TokenSource.GitConfig("github.token")
 )
@@ -23,7 +23,6 @@ lazy val root = (project in file("."))
       "org.typelevel" %% "cats-effect" % "3.4.4",
       "org.typelevel" %% "cats-effect-kernel" % "3.4.4",
       "org.typelevel" %% "log4cats-slf4j" % "2.5.0",
-      "dev.fpinbo" %% "jms4s-active-mq-artemis" % "0.0.1-53518bb-SNAPSHOT",
       "dev.fpinbo" %% "jms4s-simple-queue-service" % "0.0.1-53518bb-SNAPSHOT",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       "org.typelevel" %% "cats-effect-testing-scalatest" % "1.5.0" % Test,
