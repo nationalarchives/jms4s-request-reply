@@ -62,7 +62,7 @@ class JmsRRSqsClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with Matc
       val handler = RequestReplyHandler(jmsRrClient)
       val result = handler.handle(requestQueue, RequestMessage("hello 1234", serviceId))
 
-      IO(result.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
+      result.asserting(_ mustBe "Echo Server: hello 1234")
     }
     "send two messages and handle the replies" in { jmsRrClient =>
       val requestQueue = "request-general"
@@ -70,8 +70,8 @@ class JmsRRSqsClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with Matc
       val result1 = handler.handle(requestQueue, RequestMessage("hello 1234", serviceId))
       val result2 = handler.handle(requestQueue, RequestMessage("hello 5678", serviceId))
 
-      IO(result1.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
-      IO(result2.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 5678")
+      result1.asserting(_ mustBe "Echo Server: hello 1234") *>
+        result2.asserting(_ mustBe "Echo Server: hello 5678")
     }
     "send three messages and handle the replies" in { jmsRrClient =>
       val requestQueue = "request-general"
@@ -80,9 +80,9 @@ class JmsRRSqsClientSpec extends FixtureAsyncFreeSpec with AsyncIOSpec with Matc
       val result2 = handler.handle(requestQueue, RequestMessage("hello 5678", serviceId))
       val result3 = handler.handle(requestQueue, RequestMessage("hello 9000", serviceId))
 
-      IO(result1.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 1234")
-      IO(result2.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 5678")
-      IO(result3.unsafeRunSync()).asserting(_ mustBe "Echo Server: hello 9000")
+      result1.asserting(_ mustBe "Echo Server: hello 1234") *>
+        result2.asserting(_ mustBe "Echo Server: hello 5678") *>
+          result3.asserting(_ mustBe "Echo Server: hello 9000")
     }
   }
 }
